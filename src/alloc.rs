@@ -2,6 +2,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::slice::Iter as SliceIter;
+use subtle::Choice;
 
 use crate::{BitLength, FromBitIterator, GetBit, IntoBitIter, Lsb0, Msb0, ToBits};
 
@@ -41,7 +42,7 @@ impl<T> FromBitIterator for Vec<T>
 where
     T: FromBitIterator,
 {
-    fn from_lsb0_iter(iter: impl IntoIterator<Item = bool>) -> Self {
+    fn from_lsb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self {
         let mut iter = iter.into_iter().peekable();
         let mut vec = Vec::new();
         while iter.peek().is_some() {
@@ -50,7 +51,7 @@ where
         vec
     }
 
-    fn from_msb0_iter(iter: impl IntoIterator<Item = bool>) -> Self {
+    fn from_msb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self {
         let mut iter = iter.into_iter().peekable();
         let mut vec = Vec::new();
         while iter.peek().is_some() {

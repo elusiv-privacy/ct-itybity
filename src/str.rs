@@ -2,6 +2,7 @@
 extern crate alloc;
 
 use crate::StrToBits;
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 #[cfg(feature = "alloc")]
 use crate::FromBitIterator;
@@ -28,10 +29,12 @@ impl<'a> From<&'a str> for StrBitIter<'a> {
 }
 
 impl<'a> Iterator for StrBitIter<'a> {
-    type Item = bool;
+    type Item = Choice;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.chars.next().map(|c| c != '0')
+        self.chars
+            .next()
+            .map(|c| ConstantTimeEq::ct_ne(&c.to_digit(10).unwrap(), &0))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -41,24 +44,26 @@ impl<'a> Iterator for StrBitIter<'a> {
 
 impl<'a> DoubleEndedIterator for StrBitIter<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.chars.next_back().map(|c| c != '0')
+        self.chars
+            .next_back()
+            .map(|c| ConstantTimeEq::ct_ne(&c.to_digit(10).unwrap(), &0))
     }
 }
 
 #[cfg(feature = "alloc")]
 impl FromBitIterator for alloc::string::String {
-    fn from_lsb0_iter(iter: impl IntoIterator<Item = bool>) -> Self {
+    fn from_lsb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self {
         iter.into_iter()
-            .map(|b| if b { '1' } else { '0' })
+            .map(|b| <char>::from(ConditionallySelectable::conditional_select(&0u8, &1, b)))
             .collect::<alloc::string::String>()
             .chars()
             .rev()
             .collect()
     }
 
-    fn from_msb0_iter(iter: impl IntoIterator<Item = bool>) -> Self {
+    fn from_msb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self {
         iter.into_iter()
-            .map(|b| if b { '1' } else { '0' })
+            .map(|b| <char>::from(ConditionallySelectable::conditional_select(&0u8, &1, b)))
             .collect()
     }
 }
@@ -72,14 +77,13 @@ mod tests {
 
     #[rstest]
     #[case::empty_string("", vec![])]
-    #[case::one_bit_1("1", vec![true])]
-    #[case::one_bit_0("0", vec![false])]
-    #[case::nibble("0101", vec![false, true, false, true])]
-    #[case::non_binary_char("a", vec![true])]
-    fn test_bit_string_iter(#[case] bits: &str, #[case] expected: Vec<bool>) {
+    #[case::one_bit_1("1", vec![1])]
+    #[case::one_bit_0("0", vec![0])]
+    #[case::nibble("0101", vec![0, 1, 0, 1])]
+    #[case::non_binary_char("a", vec![1])]
+    fn test_bit_string_iter(#[case] bits: &str, #[case] expected: Vec<u8>) {
         let bit_iter = bits.iter_bits();
-
-        let bits: Vec<bool> = bit_iter.collect();
+        let bits: Vec<u8> = bit_iter.map(|b| b.unwrap_u8()).collect();
 
         assert_eq!(bits, expected);
     }

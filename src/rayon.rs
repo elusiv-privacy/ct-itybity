@@ -7,6 +7,7 @@ use rayon::{
     },
     prelude::{IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator},
 };
+use subtle::Choice;
 
 use crate::{BitIter, BitIterable, BitLength, BitOrder, GetBit, Lsb0, Msb0};
 
@@ -18,9 +19,9 @@ use crate::{BitIter, BitIterable, BitLength, BitOrder, GetBit, Lsb0, Msb0};
 /// shared access to the underlying data without cloning.
 pub trait ToParallelBits<'a> {
     /// The Lsb0 parallel bit iterator type.
-    type IterLsb0: ParallelIterator<Item = bool>;
+    type IterLsb0: ParallelIterator<Item = Choice>;
     /// The Msb0 parallel bit iterator type.
-    type IterMsb0: ParallelIterator<Item = bool>;
+    type IterMsb0: ParallelIterator<Item = Choice>;
 
     /// Creates a parallel bit iterator over `self` in Lsb0 order.
     fn par_iter_lsb0(&'a self) -> Self::IterLsb0;
@@ -56,9 +57,9 @@ where
     Self: BitIterable + Send,
 {
     /// The Lsb0 parallel bit iterator type.
-    type IterLsb0: ParallelIterator<Item = bool>;
+    type IterLsb0: ParallelIterator<Item = Choice>;
     /// The Msb0 parallel bit iterator type.
-    type IterMsb0: ParallelIterator<Item = bool>;
+    type IterMsb0: ParallelIterator<Item = Choice>;
 
     /// Converts `self` into a parallel bit iterator in Lsb0 order.
     fn into_par_iter_lsb0(self) -> Self::IterLsb0;
@@ -97,9 +98,9 @@ where
 /// without cloning.
 pub trait IntoParallelBitIterator {
     /// The Lsb0 parallel bit iterator type.
-    type IterLsb0: ParallelIterator<Item = bool>;
+    type IterLsb0: ParallelIterator<Item = Choice>;
     /// The Msb0 parallel bit iterator type.
-    type IterMsb0: ParallelIterator<Item = bool>;
+    type IterMsb0: ParallelIterator<Item = Choice>;
 
     /// Converts `self` into a parallel bit iterator in Lsb0 order.
     fn into_par_iter_lsb0(self) -> Self::IterLsb0;
@@ -136,9 +137,9 @@ where
 /// the underlying data without cloning.
 pub trait IntoParallelRefBitIterator<'a> {
     /// The Lsb0 parallel bit iterator type.
-    type IterLsb0: ParallelIterator<Item = bool> + 'a;
+    type IterLsb0: ParallelIterator<Item = Choice> + 'a;
     /// The Msb0 parallel bit iterator type.
-    type IterMsb0: ParallelIterator<Item = bool> + 'a;
+    type IterMsb0: ParallelIterator<Item = Choice> + 'a;
 
     /// Creates a parallel bit iterator over `self` in Lsb0 order.
     fn par_iter_lsb0(&'a self) -> Self::IterLsb0;
@@ -197,7 +198,7 @@ where
     T: GetBit<O> + BitLength + Clone + Send,
     O: BitOrder,
 {
-    type Item = bool;
+    type Item = Choice;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
@@ -234,7 +235,7 @@ where
     T: GetBit<O> + BitLength + Clone + Send,
     O: BitOrder,
 {
-    type Item = bool;
+    type Item = Choice;
     type IntoIter = BitIter<T, O>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -297,7 +298,7 @@ where
     T: GetBit<O> + BitLength + Sync,
     O: BitOrder,
 {
-    type Item = bool;
+    type Item = Choice;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
@@ -334,7 +335,7 @@ where
     T: GetBit<O> + BitLength + Sync,
     O: BitOrder,
 {
-    type Item = bool;
+    type Item = Choice;
     type IntoIter = BitIter<&'a T, O>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -413,14 +414,14 @@ mod tests {
                 .iter()
                 .copied()
                 .rev()
-                .collect::<Vec<bool>>();
+                .collect::<Vec<Choice>>();
 
             assert_eq!(
-                value.into_par_iter_msb0().collect::<Vec<bool>>(),
+                value.into_par_iter_msb0().collect::<Vec<Choice>>(),
                 expected_msb0_bits
             );
             assert_eq!(
-                value.into_par_iter_lsb0().collect::<Vec<bool>>(),
+                value.into_par_iter_lsb0().collect::<Vec<Choice>>(),
                 expected_lsb0_bits
             );
         }
@@ -449,16 +450,16 @@ mod tests {
         let expected_lsb0_bits = expected_msb0_bits
             .chunks(T::BITS)
             .flat_map(|chunk| chunk.iter().copied().rev())
-            .collect::<Vec<bool>>();
+            .collect::<Vec<Choice>>();
 
         let slice = [T::ZERO, T::ONE, T::TWO, T::MAX];
 
         assert_eq!(
-            slice.par_iter_msb0().collect::<Vec<bool>>(),
+            slice.par_iter_msb0().collect::<Vec<Choice>>(),
             expected_msb0_bits
         );
         assert_eq!(
-            slice.par_iter_lsb0().collect::<Vec<bool>>(),
+            slice.par_iter_lsb0().collect::<Vec<Choice>>(),
             expected_lsb0_bits
         );
     }
