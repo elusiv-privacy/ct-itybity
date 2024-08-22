@@ -17,6 +17,7 @@ rayon = ["std", "dep:rayon"]
 
 [dependencies]
 rayon = { version = "1.7", optional = true }
+subtle = "2.6.1"
 
 [dev-dependencies]
 rstest = "0.18"

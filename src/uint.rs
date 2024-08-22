@@ -1,15 +1,16 @@
 use crate::{BitIterable, BitLength, FromBitIterator, GetBit, Lsb0, Msb0};
+use subtle::{Choice, ConstantTimeEq};
 
 macro_rules! impl_uint_from_bits {
     ($typ:ty) => {
         impl FromBitIterator for $typ {
-            fn from_lsb0_iter(iter: impl IntoIterator<Item = bool>) -> Self {
+            fn from_lsb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self {
                 let mut iter = iter.into_iter();
 
                 let mut value = <$typ>::default();
                 for i in 0..<$typ>::BITS {
                     if let Some(bit) = iter.next() {
-                        value |= (bit as $typ) << i;
+                        value |= (bit.unwrap_u8() as $typ) << i;
                     } else {
                         return value;
                     }
@@ -18,13 +19,13 @@ macro_rules! impl_uint_from_bits {
                 value
             }
 
-            fn from_msb0_iter(iter: impl IntoIterator<Item = bool>) -> Self {
+            fn from_msb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self {
                 let mut iter = iter.into_iter();
 
                 let mut value = <$typ>::default();
                 for i in 0..<$typ>::BITS {
                     if let Some(bit) = iter.next() {
-                        value |= (bit as $typ) << ((<$typ>::BITS - 1) - i);
+                        value |= (bit.unwrap_u8() as $typ) << ((<$typ>::BITS - 1) - i);
                     } else {
                         return value;
                     }
@@ -51,19 +52,19 @@ macro_rules! impl_get_bit_uint {
 
         impl GetBit<Lsb0> for $ty {
             #[inline]
-            fn get_bit(&self, index: usize) -> bool {
+            fn get_bit(&self, index: usize) -> Choice {
                 assert!(index < <$ty>::BITS as usize);
-                self & (1 << index) != 0
+                ConstantTimeEq::ct_ne(&(self & (1 << index)), &0)
             }
         }
 
         impl GetBit<Msb0> for $ty {
             #[inline]
-            fn get_bit(&self, index: usize) -> bool {
+            fn get_bit(&self, index: usize) -> Choice {
                 const BIT_MASK: $ty = 1 << (<$ty>::BITS - 1);
 
                 assert!(index < <$ty>::BITS as usize);
-                self & (BIT_MASK >> index) != 0
+                ConstantTimeEq::ct_ne(&(self & (BIT_MASK >> index)), &0)
             }
         }
 

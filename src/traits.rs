@@ -5,6 +5,7 @@ extern crate alloc as core_alloc;
 use core_alloc::vec::Vec;
 
 use crate::{str::StrBitIter, BitIter, IntoBitIter, Lsb0, Msb0};
+use subtle::Choice;
 
 /// Marker trait for bit order.
 pub trait BitOrder: sealed::Sealed + Clone + Copy + Send + Sync + 'static {}
@@ -40,7 +41,7 @@ where
     /// # Panics
     ///
     /// Implementations may panic if the provided index is out of bounds.
-    fn get_bit(&self, index: usize) -> bool;
+    fn get_bit(&self, index: usize) -> Choice;
 }
 
 impl<T: ?Sized, O> GetBit<O> for &T
@@ -48,7 +49,7 @@ where
     T: GetBit<O>,
     O: BitOrder,
 {
-    fn get_bit(&self, index: usize) -> bool {
+    fn get_bit(&self, index: usize) -> Choice {
         T::get_bit(*self, index)
     }
 }
@@ -64,28 +65,28 @@ pub trait FromBitIterator {
     ///
     /// If the iterator is shorter than the number of bits in the type, the remaining bits are
     /// assumed to be zero.
-    fn from_lsb0_iter(iter: impl IntoIterator<Item = bool>) -> Self;
+    fn from_lsb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self;
 
     /// Parses a value from an iterator of bits in Msb0 order.
     ///
     /// If the iterator is shorter than the number of bits in the type, the remaining bits are
     /// assumed to be zero.
-    fn from_msb0_iter(iter: impl IntoIterator<Item = bool>) -> Self;
+    fn from_msb0_iter(iter: impl IntoIterator<Item = Choice>) -> Self;
 }
 
 /// Trait for converting types into a borrowing bit iterator.
 pub trait ToBits<'a> {
     /// The Lsb0 bit iterator type.
-    type IterLsb0: Iterator<Item = bool> + 'a;
+    type IterLsb0: Iterator<Item = Choice> + 'a;
     /// The Msb0 bit iterator type.
-    type IterMsb0: Iterator<Item = bool> + 'a;
+    type IterMsb0: Iterator<Item = Choice> + 'a;
 
     /// Returns a bit iterator over `self` in Lsb0 order.
     fn iter_lsb0(&'a self) -> Self::IterLsb0;
 
     /// Returns a bit vector of `self` in Lsb0 order.
     #[cfg(feature = "alloc")]
-    fn to_lsb0_vec(&'a self) -> Vec<bool> {
+    fn to_lsb0_vec(&'a self) -> Vec<Choice> {
         self.iter_lsb0().collect()
     }
 
@@ -94,7 +95,7 @@ pub trait ToBits<'a> {
 
     /// Returns a bit vector of `self` in Msb0 order.
     #[cfg(feature = "alloc")]
-    fn to_msb0_vec(&'a self) -> Vec<bool> {
+    fn to_msb0_vec(&'a self) -> Vec<Choice> {
         self.iter_msb0().collect()
     }
 }
@@ -121,16 +122,16 @@ where
 /// `BitLength`.
 pub trait IntoBits {
     /// The Lsb0 bit iterator type.
-    type IterLsb0: Iterator<Item = bool>;
+    type IterLsb0: Iterator<Item = Choice>;
     /// The Msb0 bit iterator type.
-    type IterMsb0: Iterator<Item = bool>;
+    type IterMsb0: Iterator<Item = Choice>;
 
     /// Converts `self` into a bit iterator in Lsb0 order.
     fn into_iter_lsb0(self) -> Self::IterLsb0;
 
     /// Converts `self` into a bit vector in Lsb0 order.
     #[cfg(feature = "alloc")]
-    fn into_lsb0_vec(self) -> Vec<bool>
+    fn into_lsb0_vec(self) -> Vec<Choice>
     where
         Self: Sized,
     {
@@ -142,7 +143,7 @@ pub trait IntoBits {
 
     /// Converts `self` into a bit vector in Msb0 order.
     #[cfg(feature = "alloc")]
-    fn into_msb0_vec(self) -> Vec<bool>
+    fn into_msb0_vec(self) -> Vec<Choice>
     where
         Self: Sized,
     {
@@ -172,16 +173,16 @@ where
 /// the item type implements `IntoBits`.
 pub trait IntoBitIterator {
     /// The Lsb0 bit iterator type.
-    type IterLsb0: Iterator<Item = bool>;
+    type IterLsb0: Iterator<Item = Choice>;
     /// The Msb0 bit iterator type.
-    type IterMsb0: Iterator<Item = bool>;
+    type IterMsb0: Iterator<Item = Choice>;
 
     /// Converts `self` into a bit iterator in Lsb0 order.
     fn into_iter_lsb0(self) -> Self::IterLsb0;
 
     /// Converts `self` into a bit vector in Lsb0 order.
     #[cfg(feature = "alloc")]
-    fn into_lsb0_vec(self) -> Vec<bool>
+    fn into_lsb0_vec(self) -> Vec<Choice>
     where
         Self: Sized,
     {
@@ -193,7 +194,7 @@ pub trait IntoBitIterator {
 
     /// Converts `self` into a bit vector in Msb0 order.
     #[cfg(feature = "alloc")]
-    fn into_msb0_vec(self) -> Vec<bool>
+    fn into_msb0_vec(self) -> Vec<Choice>
     where
         Self: Sized,
     {
@@ -229,7 +230,7 @@ pub trait StrToBits<'a> {
     ///
     /// The returned vector will contain `true` for any **character** that is not `'0'`,
     #[cfg(feature = "alloc")]
-    fn to_bit_vec(&'a self) -> Vec<bool> {
+    fn to_bit_vec(&'a self) -> Vec<Choice> {
         self.iter_bits().collect()
     }
 }

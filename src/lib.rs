@@ -48,15 +48,15 @@
 //!
 //! let byte = 0b1010_1010u8;
 //!
-//! // Convert to a Vec<bool> in Lsb0 order.
+//! // Convert to a Vec<Choice> in Lsb0 order.
 //! let bits = byte.to_lsb0_vec();
 //!
 //! assert_eq!(bits, vec![false, true, false, true, false, true, false, true]);
 //!
-//! // Writing a bit vector using bools is a pain, use a string instead!
+//! // Writing a bit vector using Choices is a pain, use a string instead!
 //! //
 //! // Notice that the string is written in Msb0 order, and we reverse it to Lsb0.
-//! let expected_bits = "10101010".iter_bits().rev().collect::<Vec<bool>>();
+//! let expected_bits = "10101010".iter_bits().rev().collect::<Vec<Choice>>();
 //!
 //! assert_eq!(bits, expected_bits);
 //!
@@ -120,7 +120,7 @@
 #[cfg(feature = "alloc")]
 mod alloc;
 mod array;
-mod bool;
+mod choice;
 #[cfg(feature = "rayon")]
 mod rayon;
 mod slice;
@@ -141,6 +141,7 @@ pub use self::rayon::{
 };
 
 use core::{fmt::Debug, iter::FusedIterator, marker::PhantomData, ops::Range};
+use subtle::Choice;
 
 /// Lsb0 bit order.
 #[derive(Debug, Clone, Copy)]
@@ -169,7 +170,7 @@ where
     T: GetBit<O> + BitLength,
     O: BitOrder,
 {
-    type Item = bool;
+    type Item = Choice;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.range.next().map(|i| self.value.get_bit(i))
@@ -291,7 +292,7 @@ where
     I::Item: GetBit<O> + BitLength,
     O: BitOrder,
 {
-    type Item = bool;
+    type Item = Choice;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(item) = &mut self.next {
@@ -499,8 +500,17 @@ mod tests {
     }
 
     #[rstest]
-    fn test_to_bit_iter_boolvec() {
-        let bits = vec![false, true, false, true, false, true, false, true];
+    fn test_to_bit_iter_bitvec() {
+        let bits = vec![
+            Choice::from(0),
+            Choice::from(1),
+            Choice::from(0),
+            Choice::from(1),
+            Choice::from(0),
+            Choice::from(1),
+            Choice::from(0),
+            Choice::from(1),
+        ];
 
         assert_eq!(u8::from_lsb0_iter(bits.iter_lsb0()), 0b10101010);
     }
@@ -518,15 +528,33 @@ mod tests {
         for<'a> T: ToBits<'a>,
     {
         for value in [T::ZERO, T::ONE, T::TWO, T::MAX] {
-            let expected_msb0_bits = format!("{:0width$b}", value, width = T::BITS).to_bit_vec();
+            let expected_msb0_bits = format!("{:0width$b}", value, width = T::BITS)
+                .to_bit_vec()
+                .into_iter()
+                .map(|b| b.unwrap_u8())
+                .collect::<Vec<u8>>();
             let expected_lsb0_bits = expected_msb0_bits
                 .iter()
                 .copied()
                 .rev()
-                .collect::<Vec<bool>>();
+                .collect::<Vec<u8>>();
 
-            assert_eq!(value.to_msb0_vec(), expected_msb0_bits);
-            assert_eq!(value.to_lsb0_vec(), expected_lsb0_bits);
+            assert_eq!(
+                value
+                    .to_msb0_vec()
+                    .iter()
+                    .map(|b| b.unwrap_u8())
+                    .collect::<Vec<u8>>(),
+                expected_msb0_bits
+            );
+            assert_eq!(
+                value
+                    .to_lsb0_vec()
+                    .iter()
+                    .map(|b| b.unwrap_u8())
+                    .collect::<Vec<u8>>(),
+                expected_lsb0_bits
+            );
         }
     }
 
@@ -550,15 +578,32 @@ mod tests {
             T::MAX,
             width = T::BITS
         )
-        .to_bit_vec();
-        let expected_lsb0_bits = expected_msb0_bits
+        .to_bit_vec()
+        .iter()
+        .map(|b| b.unwrap_u8())
+        .collect::<Vec<u8>>();
+        let expected_lsb0_bits: Vec<u8> = expected_msb0_bits
             .chunks(T::BITS)
             .flat_map(|chunk| chunk.iter().copied().rev())
-            .collect::<Vec<bool>>();
+            .collect();
 
         let slice = [T::ZERO, T::ONE, T::TWO, T::MAX];
 
-        assert_eq!(slice.to_msb0_vec(), expected_msb0_bits);
-        assert_eq!(slice.to_lsb0_vec(), expected_lsb0_bits);
+        assert_eq!(
+            slice
+                .to_msb0_vec()
+                .iter()
+                .map(|b| b.unwrap_u8())
+                .collect::<Vec<u8>>(),
+            expected_msb0_bits
+        );
+        assert_eq!(
+            slice
+                .to_lsb0_vec()
+                .iter()
+                .map(|b| b.unwrap_u8())
+                .collect::<Vec<u8>>(),
+            expected_lsb0_bits
+        );
     }
 }
